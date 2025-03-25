@@ -1,0 +1,39 @@
+{
+  "name": "TigrBots",
+  "version": "5.2.0",
+  "description": "Minecraft bot client",
+  "author": "Root764",
+  "main": "Untitled-1.js",
+  "dependencies": {
+    "events": "^3.3.0",
+    "flayercaptcha": "latest",
+    "mineflayer": "latest",
+    "mineflayer-pathfinder": "^2.4.5",
+    "sharp": "^0.33.5",
+    "vec3": "latest"
+  },
+  "devDependencies": {
+    "electron": "latest",
+    "electron-builder": "^24.13.3"
+  },
+  "scripts": {
+    "start": "electron --expose-gc .",
+    "build:linux": "electron-builder --linux",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac"
+  },
+  "build": {
+    "appId": "com.tigrbots.app",
+    "productName": "TigrBots",
+    "directories": {
+      "output": "dist"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility"
+    }
+  }
+}

@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Minecraft Bot Control</title>
+    <style>
+        :root {
+            --primary-color: #7289da;
+            --background-dark: #1e1e1e;
+            --background-light: #2b2b2b;
+            --border-color: #3c3c3c;
+            --text-color: #ffffff;
+            --text-secondary: #b9bbbe;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            background-color: var(--background-dark);
+            color: var(--text-color);
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+            padding-top: 30px;
+            border: 1px solid #3c3c3c;
+            box-sizing: border-box;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: calc(100% - 30px);
+            overflow: hidden;
+        }
+
+        #console {
+            flex: 1;
+            overflow-y: auto;
+            background-color: var(--background-dark);
+            border: 1px solid #3c3c3c;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-family: 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            border-radius: 6px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        #input-area {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        input,
+        button {
+            padding: 6px 12px;
+            border: 1px solid var(--border-color);
+            background-color: var(--background-dark);
+            color: #fff;
+            height: 32px;
+            font-size: 13px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        input {
+            flex-grow: 1;
+        }
+
+        input:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(114, 137, 218, 0.3);
+        }
+
+        button {
+            cursor: pointer;
+            background-color: var(--primary-color);
+            border: none;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+
+        button:hover {
+            background-color: #5b6eae;
+            transform: translateY(-1px);
+        }
+
+        .captcha-container {
+            width: 600px;
+            height: calc(100% - 30px);
+            overflow-y: auto;
+            background-color: var(--background-light);
+            border: 1px solid #3c3c3c;
+            padding: 15px;
+            display: flex;
+            gap: 15px;
+            border-radius: 6px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .captcha-image {
+            width: 100%;
+            max-width: 350px;
+            height: auto;
+            border: 1px solid #3c3c3c;
+            border-radius: 8px;
+            margin: 15px 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s ease;
+        }
+
+        .captcha-image:hover {
+            transform: scale(1.02);
+        }
+
+        .captcha-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .captcha-controls button {
+            min-width: 36px;
+        }
+
+        .captcha-counter {
+            text-align: center;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: #ccc;
+        }
+
+        .control-panel {
+            flex: 1;
+            background-color: #252525;
+            border: 1px solid #3c3c3c;
+            border-radius: 4px;
+            padding: 20px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+            background-color: var(--background-dark);
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .server-input {
+            display: flex;
+            flex-direction: row;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .server-input input[type="text"] {
+            width: 65%;
+            height: 32px;
+            font-size: 13px;
+            padding: 6px 10px;
+        }
+
+        .server-input input[type="number"] {
+            width: 35%;
+            height: 32px;
+            font-size: 13px;
+            padding: 6px 10px;
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .button-group button {
+            width: 100%;
+            height: 32px;
+            font-size: 14px;
+            font-weight: 500;
+            border: none;
+            border-radius: 4px;
+            background: var(--primary-color);
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            padding: 0 12px;
+        }
+
+        .button-group button:hover {
+            background: #5b6eae;
+        }
+
+        .button-group input {
+            height: 32px;
+            font-size: 13px;
+            padding: 6px 10px;
+        }
+
+        .status {
+            width: 100%;
+            text-align: center;
+            padding: 0;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            margin-top: 8px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            border: none;
+            letter-spacing: 0.5px;
+        }
+
+        .status.online {
+            background-color: #43b581;
+            color: white;
+        }
+
+        .status.offline {
+            background-color: #f04747;
+            color: white;
+        }
+
+        .status:not(.online):not(.offline) {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--background-dark);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #5b6eae;
+        }
+
+        .section-title {
+            color: #ccc;
+            font-size: 16px;
+            margin-bottom: 15px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #3c3c3c;
+        }
+
+        .titlebar {
+            -webkit-app-region: drag;
+            height: 30px;
+            background: linear-gradient(to right, var(--background-dark), var(--background-light));
+            position: fixed;
+            top: 1px;
+            left: 1px;
+            right: 1px;
+            z-index: 1000;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .titlebar-controls {
+            -webkit-app-region: no-drag;
+            display: flex;
+            align-items: center;
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+        }
+
+        .titlebar-button {
+            background: none;
+            border: none;
+            color: var(--text-color);
+            height: 30px;
+            width: 46px;
+            padding: 0;
+            margin: 0;
+            outline: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .titlebar-button:hover {
+            background: #333;
+        }
+
+        #close-button:hover {
+            background: #e81123;
+        }
+
+        .captcha-section {
+            flex: 1.2;
+            background-color: #252525;
+            border: 1px solid #3c3c3c;
+            border-radius: 4px;
+            padding: 20px;
+        }
+
+        .section-header {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .control-panel {
+            animation: fadeIn 0.3s ease;
+        }
+
+        .bots-list {
+            margin-top: 20px;
+            background-color: #252525;
+            border: 1px solid #3c3c3c;
+            border-radius: 4px;
+            padding: 20px;
+        }
+
+        .bot-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--background-dark);
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+
+        .bot-info {
+            flex: 1;
+        }
+
+        .bot-nickname {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .bot-server {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .bot-status {
+            margin-right: 10px;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+
+        .bot-status.connected {
+            background-color: #43b581;
+        }
+
+        .bot-status.disconnected {
+            background-color: #f04747;
+        }
+
+        #stop-all-bots {
+            width: 100%;
+            margin-top: 10px;
+            background-color: #f04747;
+        }
+
+        #stop-all-bots:hover {
+            background-color: #d84040;
+        }
+
+        .control-panel button {
+            height: 32px;
+            font-size: 14px;
+            font-weight: 500;
+            border: none;
+            border-radius: 4px;
+            background: var(--primary-color);
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            padding: 0 12px;
+        }
+
+        .control-panel button:hover {
+            background: #5b6eae;
+        }
+
+        [data-theme="light"] {
+            --primary-color: #5865f2;
+            --background-dark: #ffffff;
+            --background-light: #f2f3f5;
+            --border-color: #e3e5e8;
+            --text-color: #2e3338;
+            --text-secondary: #747f8d;
+            --hover-color: #e3e5e8;
+        }
+
+        [data-theme="light"] body {
+            border-color: #e3e5e8;
+        }
+
+        [data-theme="light"] .titlebar {
+            background: linear-gradient(to right, #f2f3f5, #ffffff);
+            border-bottom-color: #e3e5e8;
+        }
+
+        [data-theme="light"] .titlebar-button:hover {
+            background: var(--hover-color);
+        }
+
+        [data-theme="light"] #close-button:hover {
+            background: #e81123;
+        }
+
+        [data-theme="light"] #console {
+            background-color: #ffffff;
+            border: 1px solid #e3e5e8;
+            color: #2e3338;
+        }
+
+        [data-theme="light"] .status.online {
+            background-color: #3ba55c;
+        }
+
+        [data-theme="light"] .status.offline {
+            background-color: #ed4245;
+        }
+
+        [data-theme="light"] .control-panel {
+            background-color: #ffffff;
+            border-color: #e3e5e8;
+        }
+
+        [data-theme="light"] .control-group {
+            background-color: #f2f3f5;
+            border-color: #e3e5e8;
+        }
+
+        [data-theme="light"] input {
+            background-color: #ffffff;
+            color: #2e3338;
+        }
+
+        [data-theme="light"] .captcha-container {
+            background-color: #ffffff;
+            border-color: #e3e5e8;
+        }
+
+        [data-theme="light"] .captcha-section {
+            background-color: #f2f3f5;
+            border-color: #e3e5e8;
+        }
+
+        [data-theme="light"] #command {
+            background-color: #ffffff;
+            color: #2e3338;
+        }
+
+        [data-theme="light"] .section-header {
+            color: #2e3338;
+        }
+
+        [data-theme="light"] .main-container {
+            border-color: #e3e5e8;
+        }
+
+        [data-theme="light"] #input-area {
+            border-color: #e3e5e8;
+        }
+    </style>
+</head>
+
+<body data-theme="dark">
+    <div class="titlebar">
+        <div class="titlebar-controls">
+            <button class="titlebar-button" id="minimize-button">─</button>
+            <button class="titlebar-button" id="maximize-button">□</button>
+            <button class="titlebar-button" id="close-button">×</button>
+        </div>
+    </div>
+    <div class="main-container">
+        <div id="console"></div>
+        <div id="input-area">
+            <input type="text" id="command" placeholder="Enter command">
+            <button id="send-command">Send</button>
+        </div>
+    </div>
+
+    <div class="captcha-container">
+        <div class="captcha-section">
+            <div class="section-header">Captcha Control</div>
+            <div class="captcha-counter">Captcha: <span id="captcha-index">0</span>/<span id="captcha-total">0</span>
+            </div>
+            <img id="captcha-image" class="captcha-image" src="" alt="No captcha">
+            <div class="captcha-controls">
+                <button id="prev-captcha">Previous</button>
+                <button id="next-captcha">Next</button>
+                <button id="clear-captchas">Clear</button>
+            </div>
+            <div class="control-group" style="margin-top: 20px;">
+                <button id="open-farm-menu" style="width: 100%;">Farm Menu</button>
+            </div>
+        </div>
+
+        <div class="control-panel">
+            <div class="section-header">Bot Controls</div>
+            <div class="control-group">
+                <button id="open-settings" style="width: 100%;">Settings</button>
+            </div>
+
+            <div class="control-group">
+                <label>Bot Nickname</label>
+                <div class="button-group">
+                    <input type="text" id="bot-nickname" placeholder="Enter nickname">
+                    <button id="generate-nick">Random</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="button-group" style="margin-top: 20px;">
+                    <button id="start-bot-control">Start</button>
+                    <button id="stop-bot-control">Stop</button>
+                    <button id="reconnect-bot-control">Reconnect</button>
+                </div>
+                <div id="bot-status" class="status offline">
+                    Status: disconnected
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+        const consoleDiv = document.getElementById('console');
+        const commandInput = document.getElementById('command');
+        const sendButton = document.getElementById('send-command');
+
+        const captchaImage = document.getElementById('captcha-image');
+        const prevButton = document.getElementById('prev-captcha');
+        const nextButton = document.getElementById('next-captcha');
+        const captchaIndexSpan = document.getElementById('captcha-index');
+        const captchaTotalSpan = document.getElementById('captcha-total');
+
+        let captchaImages = [];
+        let currentCaptchaIndex = -1;
+
+        function updateCaptchaDisplay() {
+            if (captchaImages.length > 0) {
+                captchaImage.src = captchaImages[currentCaptchaIndex];
+                captchaIndexSpan.textContent = (currentCaptchaIndex + 1).toString();
+                captchaTotalSpan.textContent = captchaImages.length.toString();
+            } else {
+                captchaImage.src = '';
+                captchaIndexSpan.textContent = '0';
+                captchaTotalSpan.textContent = '0';
+            }
+        }
+
+        prevButton.addEventListener('click', () => {
+            if (currentCaptchaIndex > 0) {
+                currentCaptchaIndex--;
+                updateCaptchaDisplay();
+            }
+        });
+
+        nextButton.addEventListener('click', () => {
+            if (currentCaptchaIndex < captchaImages.length - 1) {
+                currentCaptchaIndex++;
+                updateCaptchaDisplay();
+            }
+        });
+
+        ipcRenderer.on('new-captcha', (event, captchaPath) => {
+            captchaImages.push(captchaPath);
+            if (currentCaptchaIndex === -1) {
+                currentCaptchaIndex = 0;
+            }
+            updateCaptchaDisplay();
+        });
+
+        ipcRenderer.send('request-captchas');
+        ipcRenderer.on('captcha-list', (event, images) => {
+            captchaImages = images;
+            if (images.length > 0) {
+                currentCaptchaIndex = 0;
+                updateCaptchaDisplay();
+            }
+        });
+
+        ipcRenderer.on('log', (event, message) => {
+            const maxLines = 1000;
+            const lines = consoleDiv.innerHTML.split('<br>');
+
+            if (lines.length > maxLines) {
+                consoleDiv.innerHTML = lines.slice(-maxLines).join('<br>');
+            }
+
+            consoleDiv.innerHTML += message + '<br>';
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        });
+
+        sendButton.addEventListener('click', () => {
+            const command = commandInput.value;
+            ipcRenderer.send('command', command);
+            commandInput.value = '';
+        });
+
+        commandInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendButton.click();
+            }
+        });
+
+        const serverHost = document.getElementById('server-host');
+        const serverPort = document.getElementById('server-port');
+        const botNickname = document.getElementById('bot-nickname');
+        const generateNickBtn = document.getElementById('generate-nick');
+        const startBotControl = document.getElementById('start-bot-control');
+        const stopBotControl = document.getElementById('stop-bot-control');
+        const botStatus = document.getElementById('bot-status');
+        let botSettings = {};
+
+        ipcRenderer.send('get-settings');
+
+        ipcRenderer.on('settings-loaded', (event, settings) => {
+            botSettings = settings;
+            document.body.setAttribute('data-theme', settings.theme || 'dark');
+        });
+
+        generateNickBtn.addEventListener('click', () => {
+            const prefix = 'TigrBots_';
+            const randomNum = Math.floor(Math.random() * 9999).toString().padStart(4, '0');
+            botNickname.value = prefix + randomNum;
+        });
+
+        startBotControl.addEventListener('click', () => {
+            if (!botSettings.host || !botSettings.port || !botSettings.version) {
+                console.error('Bot settings not loaded');
+                return;
+            }
+
+            const botConfig = {
+                nickname: botNickname.value.trim() || generateRandomNick(),
+                host: botSettings.host,
+                port: botSettings.port,
+                version: botSettings.version
+            };
+
+            ipcRenderer.send('start-bot', botConfig);
+            botStatus.textContent = 'Status: connecting...';
+            botStatus.className = 'status';
+        });
+
+        stopBotControl.addEventListener('click', () => {
+            ipcRenderer.send('stop-bot');
+            botStatus.textContent = 'Status: disconnected';
+            botStatus.className = 'status offline';
+        });
+
+        ipcRenderer.on('bot-status', (event, status) => {
+            switch (status) {
+                case 'connected':
+                    botStatus.textContent = 'Status: connected';
+                    botStatus.className = 'status online';
+                    break;
+                case 'disconnected':
+                    botStatus.textContent = 'Status: disconnected';
+                    botStatus.className = 'status offline';
+                    break;
+                case 'connecting':
+                    botStatus.textContent = 'Status: connecting...';
+                    botStatus.className = 'status';
+                    break;
+            }
+        });
+
+        document.getElementById('clear-captchas').addEventListener('click', () => {
+            ipcRenderer.send('clear-captchas');
+            captchaImages = [];
+            currentCaptchaIndex = -1;
+            updateCaptchaDisplay();
+        });
+
+        document.getElementById('minimize-button').addEventListener('click', () => {
+            ipcRenderer.send('minimize-window');
+        });
+
+        document.getElementById('maximize-button').addEventListener('click', () => {
+            ipcRenderer.send('maximize-window');
+        });
+
+        document.getElementById('close-button').addEventListener('click', () => {
+            ipcRenderer.send('close-window');
+        });
+
+        document.getElementById('open-settings').addEventListener('click', () => {
+            ipcRenderer.send('open-settings');
+        });
+
+        ipcRenderer.on('clear-interface', () => {
+            consoleDiv.innerHTML = '';
+
+            captchaImages = [];
+            currentCaptchaIndex = -1;
+            updateCaptchaDisplay();
+
+            botStatus.textContent = 'Status: disconnected';
+            botStatus.className = 'status offline';
+        });
+
+        stopBotControl.addEventListener('click', () => {
+            ipcRenderer.send('stop-bot');
+        });
+
+        const reconnectBotControl = document.getElementById('reconnect-bot-control');
+        reconnectBotControl.addEventListener('click', () => {
+            ipcRenderer.send('reconnect-bot');
+            botStatus.textContent = 'Status: reconnecting...';
+            botStatus.className = 'status';
+        });
+
+        ipcRenderer.on('theme-changed', (event, theme) => {
+            document.body.setAttribute('data-theme', theme);
+        });
+
+        document.getElementById('open-farm-menu').addEventListener('click', () => {
+            ipcRenderer.send('open-farm-menu');
+        });
+    </script>
+</body>
+
+</html>

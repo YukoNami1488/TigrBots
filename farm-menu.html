@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Farm Menu</title>
+    <style>
+        :root {
+            --primary-color: #7289da;
+            --background-dark: #1e1e1e;
+            --background-light: #2b2b2b;
+            --border-color: #3c3c3c;
+            --text-color: #ffffff;
+            --text-secondary: #b9bbbe;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            background-color: var(--background-dark);
+            color: var(--text-color);
+            padding: 0;
+            height: 500px;
+            box-sizing: border-box;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            width: 800px;
+        }
+
+        .titlebar {
+            -webkit-app-region: drag;
+            height: 30px;
+            background: linear-gradient(to right, var(--background-dark), var(--background-light));
+            position: fixed;
+            top: 1px;
+            left: 1px;
+            right: 1px;
+            z-index: 1000;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .titlebar-controls {
+            -webkit-app-region: no-drag;
+            display: flex;
+            align-items: center;
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+        }
+
+        .titlebar-button {
+            background: none;
+            border: none;
+            color: var(--text-color);
+            height: 30px;
+            width: 46px;
+            padding: 0;
+            margin: 0;
+            outline: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .titlebar-button:hover {
+            background: #333;
+        }
+
+        #close-button:hover {
+            background: #e81123;
+        }
+
+        .content {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+            margin-top: 30px;
+            height: calc(100% - 50px);
+        }
+
+        .left-panel,
+        .right-panel {
+            height: 100%;
+        }
+
+        .left-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .right-panel {
+            width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .farm-section {
+            height: calc(50% - 10px);
+            margin-bottom: 20px;
+            box-sizing: border-box;
+            background-color: var(--background-light);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .section-header {
+            font-size: 16px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+            font-weight: 500;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        .control-group {
+            margin-bottom: 10px;
+        }
+
+        button {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--primary-color);
+            border: none;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            height: 36px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        button:hover {
+            background: #5b6eae;
+            transform: translateY(-1px);
+        }
+
+        .status {
+            margin-top: 8px;
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .status.active {
+            background-color: #43b581;
+            color: white;
+        }
+
+        .status.inactive {
+            background-color: #f04747;
+            color: white;
+        }
+
+        [data-theme="light"] {
+            --primary-color: #5865f2;
+            --background-dark: #ffffff;
+            --background-light: #f2f3f5;
+            --border-color: #e3e5e8;
+            --text-color: #2e3338;
+            --text-secondary: #747f8d;
+        }
+
+        [data-theme="light"] select {
+            background-color: #ffffff;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="%232e3338" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>');
+            color: #2e3338;
+        }
+
+        [data-theme="light"] .farm-section {
+            background-color: #ffffff;
+            border-color: #e3e5e8;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
+        [data-theme="light"] button:hover {
+            background-color: #4752c4;
+        }
+
+        .danger-button {
+            background: #f04747;
+        }
+
+        .danger-button:hover {
+            background: #d84040;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--background-dark);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #5b6eae;
+        }
+
+        select {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--background-dark);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            border-radius: 4px;
+            margin-bottom: 8px;
+            height: 36px;
+            font-size: 14px;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            padding-right: 35px;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="%23ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            transition: all 0.2s ease;
+        }
+
+        select:hover {
+            border-color: var(--primary-color);
+        }
+
+        select:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(114, 137, 218, 0.3);
+        }
+
+        .bot-stats {
+            background-color: var(--background-light);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 15px;
+            margin: 15px;
+            margin-top: 45px;
+        }
+
+        .stats-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stat-label {
+            min-width: 90px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 24px;
+            background-color: var(--background-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-fill.health {
+            background-color: #ff5555;
+        }
+
+        .progress-fill.food {
+            background-color: #ffaa00;
+        }
+
+        .progress-fill.armor {
+            background-color: #5555ff;
+        }
+
+        .progress-bar span {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            line-height: 20px;
+            color: white;
+            text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
+        }
+
+        .status-text {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .uptime {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .right-panel .farm-section {
+            height: calc(100% - 20px);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="titlebar">
+        <div class="titlebar-controls">
+            <button class="titlebar-button" id="minimize-button">─</button>
+            <button class="titlebar-button" id="close-button">×</button>
+        </div>
+    </div>
+
+    <div class="content">
+        <div class="left-panel">
+            <div class="farm-section">
+                <div class="section-header">Fishing</div>
+                <div class="control-group">
+                    <button id="toggle-fishing">Start Fishing</button>
+                </div>
+                <div id="fishing-status" class="status inactive">Status: Inactive</div>
+            </div>
+
+            <div class="farm-section">
+                <div class="section-header">Crop Harvesting</div>
+                <div class="control-group">
+                    <select id="crop-type" style="width: 100%; margin-bottom: 10px;">
+                        <option value="wheat">Wheat</option>
+                        <option value="carrot">Carrot</option>
+                        <option value="potato">Potato</option>
+                        <option value="beetroot">Beetroot</option>
+                        <option value="melon">Melon</option>
+                        <option value="pumpkin">Pumpkin</option>
+                        <option value="sugarcane">Sugar Cane</option>
+                        <option value="cactus">Cactus</option>
+                    </select>
+                    <button id="toggle-harvesting">Start Harvesting</button>
+                </div>
+                <div id="harvesting-status" class="status inactive">Status: Inactive</div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="farm-section">
+                <div class="section-header">Bot Status</div>
+                <div class="control-group">
+                    <div class="stats-container">
+                        <div class="stat-item">
+                            <span class="stat-label">Health:</span>
+                            <div class="progress-bar">
+                                <div id="health-bar" class="progress-fill health"></div>
+                                <span id="health-text">20/20</span>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Food:</span>
+                            <div class="progress-bar">
+                                <div id="food-bar" class="progress-fill food"></div>
+                                <span id="food-text">20/20</span>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Armor:</span>
+                            <div class="progress-bar">
+                                <div id="armor-bar" class="progress-fill armor"></div>
+                                <span id="armor-text">0/20</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="status-text">
+                        Current Action: <span id="current-action">Waiting</span>
+                    </div>
+                    <div class="uptime">
+                        Uptime: <span id="bot-uptime">00:00:00</span>
+                    </div>
+
+                    <button id="drop-all" class="danger-button" style="margin-top: 15px;">Drop All Items</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        let isFishing = false;
+        const toggleFishingBtn = document.getElementById('toggle-fishing');
+        const fishingStatus = document.getElementById('fishing-status');
+
+        ipcRenderer.send('get-fishing-status');
+
+        // Обработчик статуса
+        ipcRenderer.on('fishing-status', (event, status) => {
+            isFishing = status;
+            updateFishingUI();
+        });
+
+        toggleFishingBtn.addEventListener('click', () => {
+            isFishing = !isFishing;
+            ipcRenderer.send('command', isFishing ? '!fish' : '!unfish');
+            updateFishingUI();
+        });
+
+        function updateFishingUI() {
+            toggleFishingBtn.textContent = isFishing ? 'Stop Fishing' : 'Start Fishing';
+            fishingStatus.textContent = `Status: ${isFishing ? 'Active' : 'Inactive'}`;
+            fishingStatus.className = `status ${isFishing ? 'active' : 'inactive'}`;
+        }
+
+        document.getElementById('minimize-button').addEventListener('click', () => {
+            ipcRenderer.send('minimize-farm-menu');
+        });
+
+        document.getElementById('close-button').addEventListener('click', () => {
+            window.close();
+        });
+
+        ipcRenderer.on('theme-changed', (event, theme) => {
+            document.body.setAttribute('data-theme', theme);
+        });
+
+        ipcRenderer.send('get-settings');
+        ipcRenderer.on('settings-loaded', (event, settings) => {
+            document.body.setAttribute('data-theme', settings.theme || 'dark');
+        });
+
+        document.getElementById('drop-all').addEventListener('click', () => {
+            ipcRenderer.send('drop-all-items');
+        });
+
+        let isHarvesting = false;
+        const toggleHarvestingBtn = document.getElementById('toggle-harvesting');
+        const harvestingStatus = document.getElementById('harvesting-status');
+        const cropType = document.getElementById('crop-type');
+
+        ipcRenderer.send('get-harvesting-status');
+
+        ipcRenderer.on('harvesting-status', (event, status, crop) => {
+            isHarvesting = status;
+            if (status && crop) {
+                cropType.value = crop;
+            }
+            updateHarvestingUI();
+        });
+
+        toggleHarvestingBtn.addEventListener('click', () => {
+            isHarvesting = !isHarvesting;
+            const command = isHarvesting ?
+                `!harvest ${cropType.value}` :
+                '!stopharvest';
+            ipcRenderer.send('command', command);
+            updateHarvestingUI();
+        });
+
+        function updateHarvestingUI() {
+            toggleHarvestingBtn.textContent = isHarvesting ? 'Stop Harvesting' : 'Start Harvesting';
+            harvestingStatus.textContent = `Status: ${isHarvesting ? 'Active' : 'Inactive'}`;
+            harvestingStatus.className = `status ${isHarvesting ? 'active' : 'inactive'}`;
+            cropType.disabled = isHarvesting;
+        }
+
+        ipcRenderer.on('bot-stats', (event, stats) => {
+            const healthPercent = (stats.health / 20) * 100;
+            document.getElementById('health-bar').style.width = `${healthPercent}%`;
+            document.getElementById('health-text').textContent = `${Math.round(stats.health)}/20`;
+
+            const foodPercent = (stats.food / 20) * 100;
+            document.getElementById('food-bar').style.width = `${foodPercent}%`;
+            document.getElementById('food-text').textContent = `${Math.round(stats.food)}/20`;
+
+            const armorPercent = (stats.armor / 20) * 100;
+            document.getElementById('armor-bar').style.width = `${armorPercent}%`;
+            document.getElementById('armor-text').textContent = `${Math.round(stats.armor)}/20`;
+        });
+
+        let startTime = Date.now();
+
+        setInterval(() => {
+            const uptime = Math.floor((Date.now() - startTime) / 1000);
+            const hours = Math.floor(uptime / 3600);
+            const minutes = Math.floor((uptime % 3600) / 60);
+            const seconds = uptime % 60;
+            document.getElementById('bot-uptime').textContent =
+                `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }, 1000);
+
+        ipcRenderer.on('bot-action', (event, action) => {
+            document.getElementById('current-action').textContent = action;
+        });
+    </script>
+</body>
+
+</html>
