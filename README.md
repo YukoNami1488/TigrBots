@@ -1,3 +1,5 @@
+![banner(1)](https://github.com/user-attachments/assets/e9a7241f-ec96-4a96-988c-3ac5fce6e70e)
+
 # Minecraft Bot Client
 
 A desktop application for managing Minecraft bots with an intuitive graphical interface. Built with Electron and Node.js.
