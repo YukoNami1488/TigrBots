@@ -4,7 +4,7 @@
 
 A desktop application for managing Minecraft bots with an intuitive graphical interface. Built with Electron and Node.js.
 
-Actual version 5.2.0
+Actual version 5.3.0
 BlastHack thread: https://www.blast.hk/threads/233178/
 
 ## Features
