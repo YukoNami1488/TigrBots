@@ -1,4 +1,5 @@
-![banner(1)](https://github.com/user-attachments/assets/e9a7241f-ec96-4a96-988c-3ac5fce6e70e)
+![banner](https://github.com/user-attachments/assets/d2e10a5b-1b03-4f76-95df-404e74648012)
+
 
 # Minecraft Bot Client
 
