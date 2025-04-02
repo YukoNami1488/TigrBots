@@ -1,15 +1,19 @@
 {
-  "name": "TigrBots",
+  "name": "tigrbots",
   "version": "5.2.0",
   "description": "Minecraft bot client",
   "author": "Root764",
   "main": "Untitled-1.js",
   "dependencies": {
     "events": "^3.3.0",
+    "figlet": "^1.8.0",
     "flayercaptcha": "latest",
     "mineflayer": "latest",
     "mineflayer-pathfinder": "^2.4.5",
+    "node-openvpn": "^0.1.1",
+    "node-telegram-bot-api": "^0.66.0",
     "sharp": "^0.33.5",
+    "terminal-image": "^1.0.0",
     "vec3": "latest"
   },
   "devDependencies": {

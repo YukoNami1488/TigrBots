@@ -3,10 +3,24 @@ const mineflayer = require('mineflayer');
 const pathfinder = require('mineflayer-pathfinder').pathfinder;
 const { GoalNear } = require('mineflayer-pathfinder').goals;
 const FlayerCaptcha = require('flayercaptcha');
-const readline = require('readline');
 const Vec3 = require('vec3');
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
+
+function printf(text) {
+    console.log("\x1b[93m" + text + "\x1b[0m");
+}
+
+printf("Hello in Minecraft bot client 'TigrBots' v5.2.0")
+printf("Author: root764 aka bayomma764 aka hhhaaauuu764")
+printf("BlastHack: https://www.blast.hk/threads/233178/")
+printf("Github: https://github.com/YukoNami1488/TigrBots")
+printf("--------------------------------")
+printf("Electron version: " + process.versions.electron)
+printf("Node.js version: " + process.versions.node)
+printf("Platform: " + process.platform)
+printf("--------------------------------")
 
 let botsWindow = null;
 let settingsWindow = null;
@@ -28,21 +42,34 @@ let walkInterval = null;
 let floodInterval = null;
 let statsInterval = null;
 
-function generateRandomNick() {
-    const prefix = 'TigrBots_';
-    const randomNum = Math.floor(Math.random() * 9999);
-    return prefix + randomNum.toString().padStart(4, '0');
-}
-
 function createBot(config) {
-    return mineflayer.createBot({
-        host: config.host,
-        port: config.port,
-        username: config.nickname,
-        hideErrors: true,
-        version: config.version || '1.16.5',
-        checkTimeoutInterval: 60000
-    });
+    if (!config || !config.host || !config.nickname) {
+        console.error('Invalid bot configuration');
+        return null;
+    }
+
+    try {
+        const bot = mineflayer.createBot({
+            host: config.host,
+            port: config.port || 25565,
+            username: config.nickname,
+            version: config.version || '1.16.5',
+            hideErrors: true,
+            checkTimeoutInterval: 60000,
+            chatLengthLimit: 256
+        });
+
+        bot.botId = Date.now();
+
+        bot.on('error', (err) => {
+            console.error('Bot error:', err);
+        });
+
+        return bot;
+    } catch (err) {
+        console.error('Error creating bot:', err);
+        return null;
+    }
 }
 
 function createWindow() {
@@ -66,22 +93,42 @@ function createWindow() {
 }
 
 function setupBot(bot, username, window, config) {
+    let isDestroyed = false;
+
     bot.loadPlugin(pathfinder);
 
     let captchaImages = [];
     let followInterval = null;
     let followTarget = null;
 
+    function logToFile(message) {
+        const date = new Date().toISOString().split('T')[0];
+        const logFileName = `${username}_${date}_log.txt`;
+        const logDir = path.join(__dirname, 'logs');
+        const logPath = path.join(logDir, logFileName);
+
+        if (!fs.existsSync(logDir)) {
+            fs.mkdirSync(logDir);
+        }
+
+        const timestamp = new Date().toLocaleTimeString();
+        const logMessage = `[${timestamp}] ${message}\n`;
+
+        fs.appendFileSync(logPath, logMessage);
+    }
+
     const log = (message) => {
         window.webContents.send('log', message);
+        logToFile(message);
     };
 
     bot.on('message', (message) => {
-        log(message.toString());
+        const messageStr = message.toString();
+        log(`[CHAT] ${messageStr}`);
         if (botsWindow) {
             botsWindow.webContents.send('bot-message', {
                 botId: bot.botId,
-                message: message.toString()
+                message: messageStr
             });
         }
     });
@@ -339,466 +386,446 @@ function setupBot(bot, username, window, config) {
         log('Stopped harvesting');
     }
 
-    ipcMain.on('command', (event, input) => {
-        if (!bot || bot.isDestroyed) return;
+    const commandHandler = (event, input) => {
+        if (!bot || isDestroyed || bot.isDestroyed) {
+            log('[ERROR] Cannot execute command - bot is not connected');
+            return;
+        }
 
-        if (input === '!fish') {
-            startFishing();
-        } else if (input === '!unfish') {
-            stopFishing();
-        } else if (input === '!saveacc') {
-            try {
-                const accountInfo = `${bot.username}, ${bot.host}\n`;
-                fs.appendFileSync('accounts.txt', accountInfo);
-                log(`Account ${bot.username} successfully saved to accounts.txt`);
-            } catch (err) {
-                log('Error saving account:', err.message);
-            }
-        } else if (input === '!entities') {
-            const entities = Object.values(bot.entities);
-            if (entities.length === 0) {
-                log('No entities nearby');
-            } else {
-                log('Found entities:');
-                entities.forEach(entity => {
-                    const distance = bot.entity.position.distanceTo(entity.position).toFixed(2);
-                    if (entity.type === 'player') {
-                        log(`- Player ${entity.username} at distance ${distance} blocks`);
-                    } else {
-                        log(`- ${entity.name || entity.displayName || 'Unknown entity'} (type: ${entity.type}) at distance ${distance} blocks`);
-                    }
-                });
-            }
-        } else if (input.startsWith('!selectpvp')) {
-            const args = input.split(' ');
-            const serverNumber = parseInt(args[1]);
+        try {
+            log(`[COMMAND] ${input}`);
 
-            if (!serverNumber || serverNumber < 1 || serverNumber > 3) {
-                log('Usage: !selectpvp <server_number> (1-3)');
-                return;
-            }
-
-            selectedServer = serverNumber;
-
-            const selectPlayer = Object.values(bot.entities).find(entity =>
-                entity.type === 'player' && entity.username === 'select'
-            );
-
-            if (!selectPlayer) {
-                log('Player "select" not found nearby');
-                return;
-            }
-
-            bot.lookAt(selectPlayer.position)
-                .then(() => {
-                    bot.setControlState('forward', true);
-
-                    const checkDistance = setInterval(() => {
-                        const distance = bot.entity.position.distanceTo(selectPlayer.position);
-                        if (distance <= 3) {
-                            bot.setControlState('forward', false);
-                            clearInterval(checkDistance);
-
-                            bot.attack(selectPlayer);
-                            log('Attacking "select" player to open menu');
-                        }
-                    }, 100);
-                });
-        } else if (input.startsWith('!hit')) {
-            const args = input.split(' ');
-            if (args.length < 2) {
-                log('Usage: !hit <player_name> [left/right] - default is left click');
-                return;
-            }
-
-            const targetName = args[1];
-            const clickType = args[2]?.toLowerCase() === 'right' ? 'right' : 'left';
-            let target = null;
-
-            if (bot.players[targetName]?.entity) {
-                target = bot.players[targetName].entity;
-            } else {
-                target = Object.values(bot.entities).find(entity =>
-                    entity.name === targetName || entity.username === targetName
-                );
-            }
-
-            if (!target) {
-                log(`Target "${targetName}" not found nearby`);
-                return;
-            }
-
-            const distance = bot.entity.position.distanceTo(target.position);
-
-            if (distance > 4) {
-                log(`Target is too far (${distance.toFixed(2)} blocks). Need to be within 4 blocks`);
-                return;
-            }
-
-            (async () => {
-                try {
-                    await bot.lookAt(target.position.offset(0, target.height * 0.5, 0));
-
-                    if (clickType === 'right') {
-                        bot.activateEntity(target);
-                        log(`Right clicked ${targetName}`);
-                    } else {
-                        bot.attack(target);
-                        log(`Left clicked ${targetName}`);
-                    }
-                } catch (err) {
-                    log(`Error hitting ${targetName}: ${err.message}`);
+            if (input === '!help') {
+                log('Available commands:');
+                log('!fish - start fishing');
+                log('!unfish - stop fishing');
+                log('!getip - get server IP information');
+                log('!saveacc - save account data to file');
+                log('!entities - show list of nearby entities');
+                log('!hit <player> [left/right] - hit/click on player');
+                log('!walk <player> - walk to player');
+                log('!follow <player> - follow player');
+                log('!stopfollow - stop following');
+                log('!krug - walk in circles');
+                log('!stopkrug - stop walking in circles');
+                log('!inventory - show inventory contents');
+                log('!drop <slot> [amount] - drop items from slot');
+                log('!drop all - drop all items and armor');
+                log('!harvest <crop_type> - start harvesting');
+                log('   Crop types: wheat, carrot, potato, beetroot,');
+                log('   melon, pumpkin, sugarcane, cactus');
+                log('!stopharvest - stop harvesting');
+                log('!help - show command list');
+            } else if (input === '!fish') {
+                startFishing();
+            } else if (input === '!unfish') {
+                stopFishing();
+            } else if (input === '!getip') {
+                const ip = bot.socket?.remoteAddress || bot._client?.socket?.remoteAddress;
+                if (!ip) {
+                    log('Unable to get IP address');
+                    return;
                 }
-            })();
-        } else if (input.startsWith('!walk')) {
-            const args = input.split(' ');
-            if (args.length < 2) {
-                log('Usage: !walk <player_name>');
-                return;
-            }
 
-            const targetName = args[1];
-            let target = null;
-
-            if (bot.players[targetName]?.entity) {
-                target = bot.players[targetName].entity;
-            } else {
-                target = Object.values(bot.entities).find(entity =>
-                    entity.name === targetName || entity.username === targetName
-                );
-            }
-
-            if (!target) {
-                log(`Target "${targetName}" not found nearby`);
-                return;
-            }
-
-            const distance = bot.entity.position.distanceTo(target.position);
-            log(`Walking to ${targetName} (distance: ${distance.toFixed(2)} blocks)`);
-
-            if (followInterval) {
-                clearInterval(followInterval);
-                followInterval = null;
-                followTarget = null;
-            }
-            bot.setControlState('forward', false);
-            bot.setControlState('sprint', false);
-
-            try {
-                const goal = new GoalNear(target.position.x, target.position.y, target.position.z, 2);
-                bot.pathfinder.setGoal(goal);
-
-                bot.once('goal_reached', () => {
-                    log(`Reached ${targetName}`);
+                https.get(`https://ip-api.com/json/${ip}`, (resp) => {
+                    let data = '';
+                    resp.on('data', (chunk) => {
+                        data += chunk;
+                    });
+                    resp.on('end', () => {
+                        try {
+                            const ipInfo = JSON.parse(data);
+                            log(`IP: ${ip}`);
+                            log(`Country: ${ipInfo.country || 'Unknown'}`);
+                            log(`Region: ${ipInfo.regionName || 'Unknown'}`);
+                            log(`City: ${ipInfo.city || 'Unknown'}`);
+                            log(`Provider: ${ipInfo.isp || 'Unknown'}`);
+                            if (ipInfo.proxy || ipInfo.hosting) {
+                                log('VPN/proxy connection detected');
+                            }
+                        } catch (err) {
+                            log(`IP: ${ip}`);
+                            log('Unable to determine location');
+                        }
+                    });
+                }).on('error', (err) => {
+                    log(`IP: ${ip}`);
+                    log('Unable to determine location');
                 });
-            } catch (err) {
-                log(`Error pathfinding to ${targetName}: ${err.message}`);
-            }
-        } else if (input.startsWith('!follow')) {
-            const args = input.split(' ');
-            if (args.length < 2) {
-                log('Usage: !follow <player_name>');
-                return;
-            }
+            } else if (input === '!saveacc') {
+                try {
+                    const accountInfo = `${bot.username}, ${bot.host}\n`;
+                    fs.appendFileSync('accounts.txt', accountInfo);
+                    log(`Account ${bot.username} successfully saved to accounts.txt`);
+                } catch (err) {
+                    log('Error saving account:', err.message);
+                }
+            } else if (input === '!entities') {
+                const entities = Object.values(bot.entities);
+                if (entities.length === 0) {
+                    log('No entities nearby');
+                } else {
+                    log('Found entities:');
+                    entities.forEach(entity => {
+                        const distance = bot.entity.position.distanceTo(entity.position).toFixed(2);
+                        if (entity.type === 'player') {
+                            log(`- Player ${entity.username} at distance ${distance} blocks`);
+                        } else {
+                            log(`- ${entity.name || entity.displayName || 'Unknown entity'} (type: ${entity.type}) at distance ${distance} blocks`);
+                        }
+                    });
+                }
+            } else if (input.startsWith('!selectpvp')) {
+                const args = input.split(' ');
+                const serverNumber = parseInt(args[1]);
 
-            const playerName = args[1];
-            const player = bot.players[playerName];
+                if (!serverNumber || serverNumber < 1 || serverNumber > 3) {
+                    log('Usage: !selectpvp <server_number> (1-3)');
+                    return;
+                }
 
-            if (!player || !player.entity) {
-                log(`Player ${playerName} not found nearby`);
-                return;
-            }
+                selectedServer = serverNumber;
 
-            if (followInterval) {
-                clearInterval(followInterval);
-            }
+                const selectPlayer = Object.values(bot.entities).find(entity =>
+                    entity.type === 'player' && entity.username === 'select'
+                );
 
-            followTarget = playerName;
-            log(`Following player: ${playerName}`);
+                if (!selectPlayer) {
+                    log('Player "select" not found nearby');
+                    return;
+                }
 
-            followInterval = setInterval(() => {
-                const target = bot.players[followTarget]?.entity;
+                bot.lookAt(selectPlayer.position)
+                    .then(() => {
+                        bot.setControlState('forward', true);
+
+                        const checkDistance = setInterval(() => {
+                            const distance = bot.entity.position.distanceTo(selectPlayer.position);
+                            if (distance <= 3) {
+                                bot.setControlState('forward', false);
+                                clearInterval(checkDistance);
+
+                                bot.attack(selectPlayer);
+                                log('Attacking "select" player to open menu');
+                            }
+                        }, 100);
+                    });
+            } else if (input.startsWith('!hit')) {
+                const args = input.split(' ');
+                if (args.length < 2) {
+                    log('Usage: !hit <player_name> [left/right] - default is left click');
+                    return;
+                }
+
+                const targetName = args[1];
+                const clickType = args[2]?.toLowerCase() === 'right' ? 'right' : 'left';
+                let target = null;
+
+                if (bot.players[targetName]?.entity) {
+                    target = bot.players[targetName].entity;
+                } else {
+                    target = Object.values(bot.entities).find(entity =>
+                        entity.name === targetName || entity.username === targetName
+                    );
+                }
+
                 if (!target) {
-                    log(`Lost sight of ${followTarget}`);
-                    clearInterval(followInterval);
-                    followInterval = null;
-                    followTarget = null;
-                    bot.setControlState('forward', false);
-                    bot.setControlState('sprint', false);
+                    log(`Target "${targetName}" not found nearby`);
                     return;
                 }
 
                 const distance = bot.entity.position.distanceTo(target.position);
 
-                if (distance > 2) {
-                    bot.lookAt(target.position);
-                    bot.setControlState('forward', true);
-                    bot.setControlState('sprint', true);
-                } else {
-                    bot.setControlState('forward', false);
-                    bot.setControlState('sprint', false);
-                }
-            }, 50);
-
-        } else if (input === '!stopfollow') {
-            if (followInterval) {
-                clearInterval(followInterval);
-                followInterval = null;
-                followTarget = null;
-                bot.setControlState('forward', false);
-                bot.setControlState('sprint', false);
-                log('Stopped following');
-            } else {
-                log('Not following anyone');
-            }
-        } else if (input === '!krug') {
-            if (walkInterval) {
-                log('Bot is already walking in circles');
-                return;
-            }
-            log('Starting circle movement');
-            let angle = 0;
-            const radius = 2;
-            const startPos = bot.entity.position.clone();
-
-            walkInterval = setInterval(() => {
-                try {
-                    const x = startPos.x + radius * Math.cos(angle);
-                    const z = startPos.z + radius * Math.sin(angle);
-
-                    const lookAt = new Vec3(x, bot.entity.position.y, z);
-                    bot.lookAt(lookAt);
-                    bot.setControlState('forward', true);
-
-                    angle += Math.PI / 32;
-                    if (angle >= Math.PI * 2) {
-                        angle = 0;
-                    }
-                } catch (err) {
-                    log('Error in movement:', err);
-                }
-            }, 50);
-        } else if (input === '!stopkrug') {
-            if (walkInterval) {
-                clearInterval(walkInterval);
-                walkInterval = null;
-                bot.setControlState('forward', false);
-                log('Circle movement stopped');
-            } else {
-                log('Bot is not walking in circles');
-            }
-        } else if (input === '!inventory') {
-            const inventory = bot.inventory.items();
-            if (inventory.length === 0) {
-                log('Inventory is empty');
-            } else {
-                log('Inventory contents:');
-                inventory.forEach(item => {
-                    log(`- ${item.name} (${item.count}) in slot ${item.slot}`);
-                });
-            }
-        } else if (input.startsWith('!drop')) {
-            const args = input.split(' ');
-
-            if (args[1] === 'all') {
-                const inventory = bot.inventory.items();
-                const armor = Object.values(bot.inventory.slots).filter(item =>
-                    item && item.slot >= 5 && item.slot <= 8
-                );
-
-                if (inventory.length === 0 && armor.length === 0) {
-                    log('Inventory is empty and armor is missing');
+                if (distance > 4) {
+                    log(`Target is too far (${distance.toFixed(2)} blocks). Need to be within 4 blocks`);
                     return;
                 }
 
-                log('Dropping all items and armor...');
-
                 (async () => {
-                    for (const item of armor) {
-                        try {
-                            await bot.tossStack(item);
-                            log(`Dropped ${item.name} (armor) from slot ${item.slot}`);
-                        } catch (err) {
-                            log(`Error dropping armor from slot ${item.slot}: ${err.message}`);
-                        }
-                    }
+                    try {
+                        await bot.lookAt(target.position.offset(0, target.height * 0.5, 0));
 
-                    for (const item of inventory) {
-                        try {
-                            await bot.tossStack(item);
-                            log(`Dropped ${item.name} (${item.count}) from slot ${item.slot}`);
-                        } catch (err) {
-                            log(`Error dropping item from slot ${item.slot}: ${err.message}`);
+                        if (clickType === 'right') {
+                            bot.activateEntity(target);
+                            log(`Right clicked ${targetName}`);
+                        } else {
+                            bot.attack(target);
+                            log(`Left clicked ${targetName}`);
                         }
+                    } catch (err) {
+                        log(`Error hitting ${targetName}: ${err.message}`);
                     }
-                    log('Dropping all items completed');
                 })();
-                return;
-            }
+            } else if (input.startsWith('!walk')) {
+                const args = input.split(' ');
+                if (args.length < 2) {
+                    log('Usage: !walk <player_name>');
+                    return;
+                }
 
-            if (args.length < 2) {
-                log('Usage: !drop <slot_number> [count] or !drop all');
-                return;
-            }
+                const targetName = args[1];
+                let target = null;
 
-            const slot = parseInt(args[1]);
-            const count = args[2] ? parseInt(args[2]) : null;
-
-            const item = bot.inventory.slots[slot];
-            if (!item) {
-                log(`Item not found in slot ${slot}`);
-                return;
-            }
-
-            try {
-                if (count && count > 0 && count <= item.count) {
-                    bot.tossStack(item, count);
-                    log(`Dropped ${count} ${item.name} from slot ${slot}`);
+                if (bot.players[targetName]?.entity) {
+                    target = bot.players[targetName].entity;
                 } else {
-                    bot.tossStack(item);
-                    log(`Dropped all ${item.name} (${item.count}) from slot ${slot}`);
+                    target = Object.values(bot.entities).find(entity =>
+                        entity.name === targetName || entity.username === targetName
+                    );
                 }
-            } catch (err) {
-                log('Error dropping item:', err.message);
-            }
-        } else if (input.startsWith('!harvest')) {
-            const args = input.split(' ');
-            if (args.length < 2) {
-                log('Usage: !harvest <crop_type>');
-                return;
-            }
 
-            const cropType = args[1];
-            startHarvesting(cropType);
-        } else if (input === '!stopharvest') {
-            stopHarvesting();
-        } else {
-            bot.chat(input);
-        }
-    });
-
-    bot.on('windowOpen', async (window) => {
-        if (window.title.includes('Выбери сервер!') && !hasClickedMenu && selectedServer) {
-            log('Menu for server selection opened');
-
-            window.slots.forEach((item, index) => {
-                if (item) {
-                    log(`Слот ${index}: ${item.name} (${item.displayName})`);
+                if (!target) {
+                    log(`Target "${targetName}" not found nearby`);
+                    return;
                 }
-            });
 
-            const slotMap = {
-                1: 10,
-                2: 11,
-                3: 12
-            };
+                const distance = bot.entity.position.distanceTo(target.position);
+                log(`Walking to ${targetName} (distance: ${distance.toFixed(2)} blocks)`);
 
-            const slot = slotMap[selectedServer];
+                if (followInterval) {
+                    clearInterval(followInterval);
+                    followInterval = null;
+                    followTarget = null;
+                }
+                bot.setControlState('forward', false);
+                bot.setControlState('sprint', false);
 
-            setTimeout(async () => {
                 try {
-                    await bot.clickWindow(slot, 0, 0);
-                    hasClickedMenu = true;
-                    log(`Clicked on slot ${selectedServer}-th server (slot ${slot})`);
+                    const goal = new GoalNear(target.position.x, target.position.y, target.position.z, 2);
+                    bot.pathfinder.setGoal(goal);
+
+                    bot.once('goal_reached', () => {
+                        log(`Reached ${targetName}`);
+                    });
                 } catch (err) {
-                    log('Error in click, trying again in 1 second...');
-                    setTimeout(async () => {
-                        try {
-                            await bot.clickWindow(slot, 0, 0);
-                            hasClickedMenu = true;
-                            log(`Clicked on slot ${selectedServer}-th server (slot ${slot})`);
-                        } catch (err) {
-                            log('Failed to click on slot:', err.message);
-                        }
-                    }, 1000);
+                    log(`Error pathfinding to ${targetName}: ${err.message}`);
                 }
-            }, 1500);
-        }
-    });
+            } else if (input.startsWith('!follow')) {
+                const args = input.split(' ');
+                if (args.length < 2) {
+                    log('Usage: !follow <player_name>');
+                    return;
+                }
 
-    function updateBotStats() {
-        try {
-            if (!farmMenuWindow || farmMenuWindow.isDestroyed()) {
-                clearInterval(statsInterval);
-                statsInterval = null;
-                return;
-            }
+                const playerName = args[1];
+                const player = bot.players[playerName];
 
-            if (!bot || bot.isDestroyed) {
-                clearInterval(statsInterval);
-                statsInterval = null;
-                return;
-            }
+                if (!player || !player.entity) {
+                    log(`Player ${playerName} not found nearby`);
+                    return;
+                }
 
-            if (bot.entity) {
-                const armorPoints = bot.entity.armor ?
-                    bot.entity.armor.reduce((total, item) => total + (item ? 2 : 0), 0) : 0;
+                if (followInterval) {
+                    clearInterval(followInterval);
+                }
 
-                farmMenuWindow.webContents.send('bot-stats', {
-                    health: bot.health || 0,
-                    food: bot.food || 0,
-                    armor: armorPoints
-                });
+                followTarget = playerName;
+                log(`Following player: ${playerName}`);
+
+                followInterval = setInterval(() => {
+                    const target = bot.players[followTarget]?.entity;
+                    if (!target) {
+                        log(`Lost sight of ${followTarget}`);
+                        clearInterval(followInterval);
+                        followInterval = null;
+                        followTarget = null;
+                        bot.setControlState('forward', false);
+                        bot.setControlState('sprint', false);
+                        return;
+                    }
+
+                    const distance = bot.entity.position.distanceTo(target.position);
+
+                    if (distance > 2) {
+                        bot.lookAt(target.position);
+                        bot.setControlState('forward', true);
+                        bot.setControlState('sprint', true);
+                    } else {
+                        bot.setControlState('forward', false);
+                        bot.setControlState('sprint', false);
+                    }
+                }, 50);
+
+            } else if (input === '!stopfollow') {
+                if (followInterval) {
+                    clearInterval(followInterval);
+                    followInterval = null;
+                    followTarget = null;
+                    bot.setControlState('forward', false);
+                    bot.setControlState('sprint', false);
+                    log('Stopped following');
+                } else {
+                    log('Not following anyone');
+                }
+            } else if (input === '!krug') {
+                if (walkInterval) {
+                    log('Bot is already walking in circles');
+                    return;
+                }
+                log('Starting circle movement');
+                let angle = 0;
+                const radius = 2;
+                const startPos = bot.entity.position.clone();
+
+                walkInterval = setInterval(() => {
+                    try {
+                        const x = startPos.x + radius * Math.cos(angle);
+                        const z = startPos.z + radius * Math.sin(angle);
+
+                        const lookAt = new Vec3(x, bot.entity.position.y, z);
+                        bot.lookAt(lookAt);
+                        bot.setControlState('forward', true);
+
+                        angle += Math.PI / 32;
+                        if (angle >= Math.PI * 2) {
+                            angle = 0;
+                        }
+                    } catch (err) {
+                        log('Error in movement:', err);
+                    }
+                }, 50);
+            } else if (input === '!stopkrug') {
+                if (walkInterval) {
+                    clearInterval(walkInterval);
+                    walkInterval = null;
+                    bot.setControlState('forward', false);
+                    log('Circle movement stopped');
+                } else {
+                    log('Bot is not walking in circles');
+                }
+            } else if (input === '!inventory') {
+                const inventory = bot.inventory.items();
+                if (inventory.length === 0) {
+                    log('Inventory is empty');
+                } else {
+                    log('Inventory contents:');
+                    inventory.forEach(item => {
+                        log(`- ${item.name} (${item.count}) in slot ${item.slot}`);
+                    });
+                }
+            } else if (input.startsWith('!drop')) {
+                const args = input.split(' ');
+
+                if (args[1] === 'all') {
+                    const inventory = bot.inventory.items();
+                    const armor = Object.values(bot.inventory.slots).filter(item =>
+                        item && item.slot >= 5 && item.slot <= 8
+                    );
+
+                    if (inventory.length === 0 && armor.length === 0) {
+                        log('Inventory is empty and armor is missing');
+                        return;
+                    }
+
+                    log('Dropping all items and armor...');
+
+                    (async () => {
+                        for (const item of armor) {
+                            try {
+                                await bot.tossStack(item);
+                                log(`Dropped ${item.name} (armor) from slot ${item.slot}`);
+                            } catch (err) {
+                                log(`Error dropping armor from slot ${item.slot}: ${err.message}`);
+                            }
+                        }
+
+                        for (const item of inventory) {
+                            try {
+                                await bot.tossStack(item);
+                                log(`Dropped ${item.name} (${item.count}) from slot ${item.slot}`);
+                            } catch (err) {
+                                log(`Error dropping item from slot ${item.slot}: ${err.message}`);
+                            }
+                        }
+                        log('Dropping all items completed');
+                    })();
+                    return;
+                }
+
+                if (args.length < 2) {
+                    log('Usage: !drop <slot_number> [count] or !drop all');
+                    return;
+                }
+
+                const slot = parseInt(args[1]);
+                const count = args[2] ? parseInt(args[2]) : null;
+
+                const item = bot.inventory.slots[slot];
+                if (!item) {
+                    log(`Item not found in slot ${slot}`);
+                    return;
+                }
+
+                try {
+                    if (count && count > 0 && count <= item.count) {
+                        bot.tossStack(item, count);
+                        log(`Dropped ${count} ${item.name} from slot ${slot}`);
+                    } else {
+                        bot.tossStack(item);
+                        log(`Dropped all ${item.name} (${item.count}) from slot ${slot}`);
+                    }
+                } catch (err) {
+                    log('Error dropping item:', err.message);
+                }
+            } else if (input.startsWith('!harvest')) {
+                const args = input.split(' ');
+                if (args.length < 2) {
+                    log('Usage: !harvest <crop_type>');
+                    return;
+                }
+
+                const cropType = args[1];
+                startHarvesting(cropType);
+            } else if (input === '!stopharvest') {
+                stopHarvesting();
+            } else {
+                bot.chat(input);
             }
         } catch (err) {
-            clearInterval(statsInterval);
-            statsInterval = null;
+            log(`[ERROR] Command execution error: ${err.message}`);
         }
-    }
+    };
 
-    statsInterval = setInterval(updateBotStats, 1000);
+    ipcMain.on('command', commandHandler);
 
-    bot.on('end', () => {
-        [statsInterval, harvestInterval, fishingTimeout, followInterval, walkInterval, floodInterval].forEach(interval => {
-            if (interval) {
-                clearInterval(interval);
-                clearTimeout(interval);
-            }
-        });
+    const cleanup = () => {
+        isDestroyed = true;
 
-        statsInterval = null;
-        harvestInterval = null;
-        fishingTimeout = null;
+        ipcMain.removeListener('command', commandHandler);
+
+        if (followInterval) clearInterval(followInterval);
+        if (harvestInterval) clearInterval(harvestInterval);
+        if (walkInterval) clearInterval(walkInterval);
+        if (floodInterval) clearInterval(floodInterval);
+        if (statsInterval) clearInterval(statsInterval);
+
         followInterval = null;
+        harvestInterval = null;
         walkInterval = null;
         floodInterval = null;
+        statsInterval = null;
+    };
 
-        isFishing = false;
-        isHarvesting = false;
-        currentCrop = null;
+    bot.on('end', () => {
+        cleanup();
+        log('[CONNECTION] Bot disconnected');
 
         if (farmMenuWindow && !farmMenuWindow.isDestroyed()) {
             farmMenuWindow.webContents.send('fishing-status', false);
             farmMenuWindow.webContents.send('harvesting-status', false);
             farmMenuWindow.webContents.send('bot-action', 'Disconnected');
-            farmMenuWindow.webContents.send('bot-stats', {
-                health: 0,
-                food: 0,
-                armor: 0
-            });
         }
 
         if (window && !window.isDestroyed()) {
             window.webContents.send('bot-status', 'disconnected');
         }
+    });
 
-        if (!intentionalStop) {
-            log('Disconnected, waiting before reconnect...');
-            setTimeout(() => {
-                try {
-                    let newBot = createBot(config);
-                    setupBot(newBot, username, window, config);
-                } catch (err) {
-                    log('Reconnection error:', err.message);
-                    setTimeout(() => {
-                        let newBot = createBot(config);
-                        setupBot(newBot, username, window, config);
-                    }, 10000);
-                }
-            }, 5000);
-        } else {
-            intentionalStop = false;
+    window.on('closed', () => {
+        if (!isDestroyed && bot) {
+            bot.end('Window closed');
         }
+        cleanup();
     });
 
     setInterval(() => {
@@ -1141,4 +1168,20 @@ function createFarmMenuWindow() {
         }
         farmMenuWindow = null;
     });
+}
+
+async function switchBot(oldConfig, newConfig) {
+    if (currentBot) {
+        currentBot.end('Switching bot');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+
+    try {
+        currentBot = createBot(newConfig);
+        if (currentBot) {
+            setupBot(currentBot, newConfig.nickname, mainWindow, newConfig);
+        }
+    } catch (err) {
+        console.error('Error switching bot:', err);
+    }
 }
