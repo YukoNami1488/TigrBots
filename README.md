@@ -1,14 +1,21 @@
-![banner](https://github.com/user-attachments/assets/d2e10a5b-1b03-4f76-95df-404e74648012)
+![banner](https://github.com/user-attachments/assets/9bc5e852-b797-47d5-afde-e820c4d8b8be)
+
 
 
 # Minecraft Bot Client
 
 A desktop application for managing Minecraft bots with an intuitive graphical interface. Built with Electron and Node.js.
 
-Actual version 5.3.0
+Actual version 5.4.0
 BlastHack thread: https://www.blast.hk/threads/233178/
 
 ## Features
+
+### Viewing areas around
+- Ability to view areas around
+- Viewing players around
+- Displaying chunks and blocks
+- Updating player movement in real time
 
 ### Commands
 - `!help` - Show list of all available commands
