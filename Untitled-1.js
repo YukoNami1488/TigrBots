@@ -42,6 +42,8 @@ let walkInterval = null;
 let floodInterval = null;
 let statsInterval = null;
 
+let territoryWindow = null;
+
 function createBot(config) {
     if (!config || !config.host || !config.nickname) {
         console.error('Invalid bot configuration');
@@ -1123,6 +1125,10 @@ app.whenReady().then(() => {
 
         currentBot.emit('message', 'Dropping all items completed');
     });
+
+    ipcMain.on('open-territory', () => {
+        createTerritoryWindow();
+    });
 });
 
 function createFarmMenuWindow() {
@@ -1185,3 +1191,78 @@ async function switchBot(oldConfig, newConfig) {
         console.error('Error switching bot:', err);
     }
 }
+
+function createTerritoryWindow() {
+    if (territoryWindow) {
+        if (!territoryWindow.isDestroyed()) {
+            territoryWindow.focus();
+            return;
+        }
+        territoryWindow = null;
+    }
+
+    territoryWindow = new BrowserWindow({
+        width: 800,
+        height: 600,
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false
+        },
+        frame: false,
+        backgroundColor: '#2b2b2b'
+    });
+
+    territoryWindow.loadFile('territory-view.html');
+
+    territoryWindow.on('closed', () => {
+        territoryWindow = null;
+    });
+}
+
+ipcMain.on('request-territory', async (event) => {
+    if (!currentBot || !currentBot.entity) return;
+
+    const chunks = 5;
+    const blocks = [];
+    const botPos = currentBot.entity.position;
+    const players = [];
+
+    Object.values(currentBot.players).forEach(player => {
+        if (player.entity && player.entity !== currentBot.entity) {
+            const playerPos = player.entity.position;
+            const relativeX = playerPos.x - botPos.x;
+            const relativeZ = playerPos.z - botPos.z;
+
+            players.push({
+                name: player.username,
+                x: relativeX,
+                z: relativeZ
+            });
+        }
+    });
+
+    for (let x = -chunks * 16; x <= chunks * 16; x++) {
+        for (let z = -chunks * 16; z <= chunks * 16; z++) {
+            const block = currentBot.blockAt(botPos.offset(x, 0, z));
+            if (block) {
+                blocks.push({
+                    x: x,
+                    z: z,
+                    type: block.name
+                });
+            }
+        }
+    }
+
+    event.reply('territory-data', {
+        blocks: blocks,
+        botPosition: { x: 0, z: 0 },
+        players: players
+    });
+});
+
+ipcMain.on('minimize-territory', () => {
+    if (territoryWindow) {
+        territoryWindow.minimize();
+    }
+});

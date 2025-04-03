@@ -413,7 +413,6 @@
 
         ipcRenderer.send('get-fishing-status');
 
-        // Обработчик статуса
         ipcRenderer.on('fishing-status', (event, status) => {
             isFishing = status;
             updateFishingUI();

@@ -539,6 +539,7 @@
             </div>
             <div class="control-group" style="margin-top: 20px;">
                 <button id="open-farm-menu" style="width: 100%;">Farm Menu</button>
+                <button id="open-territory" style="margin-top: 10px;">Territory View</button>
             </div>
         </div>
 
@@ -765,6 +766,10 @@
 
         document.getElementById('open-farm-menu').addEventListener('click', () => {
             ipcRenderer.send('open-farm-menu');
+        });
+
+        document.getElementById('open-territory').addEventListener('click', () => {
+            ipcRenderer.send('open-territory');
         });
     </script>
 </body>
